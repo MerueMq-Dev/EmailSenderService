@@ -1,0 +1,15 @@
+{
+  "from": {
+    "name": "", // example: Company
+    "email": "" // example: asd@mail.ru
+  },
+  "smtpServer": {
+    "server": "", // for example gmail stmp-server: smtp.gmail.com
+    "port": 0, // standart gmail stmp-server port: 465
+    "isHttps": true
+  },
+  "authenticatedData": {
+    "email": "", // example: asd@mail.ru
+    "password": "" // example: Password1234я 
+  }
+}
