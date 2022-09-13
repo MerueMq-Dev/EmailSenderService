@@ -31,22 +31,36 @@ namespace EmailSenderService.Controllers
         /// <param name="emailData"></param>
         /// <returns>if the send was successful, it returns the object saved in the database; otherwise, an error message </returns>
         [HttpPost]
-        public IResult Post(EmailModel emailData)
+        public async Task<ActionResult<EmailEntity>> Post(EmailModel emailData)
         {
             var result = _validator.Validate(emailData);
             if (!result.IsValid)
             {
-                return Results.ValidationProblem(result.ToDictionary());
+                var errorMessage = "";
+                result.Errors.ForEach(e => errorMessage += e.ErrorMessage);
+                var email = EmailMapper(emailData, errorMessage);
+                await _emailAppContext.Emails.AddAsync(email);
+                await _emailAppContext.SaveChangesAsync();
+                return BadRequest(errorMessage);
             }
-            return _emailService.SendEmailAndSaveToDatabase(emailData);
+
+            try
+            {
+                await _emailService.SendEmailAsync(emailData);
+                var email = EmailMapper(emailData);
+                await _emailAppContext.Emails.AddAsync(email);
+                await _emailAppContext.SaveChangesAsync();
+                return Ok(email);
+            }
+            catch (Exception ex)
+            {
+                var email = EmailMapper(emailData, ex.Message);
+                await _emailAppContext.Emails.AddAsync(email);
+                await _emailAppContext.SaveChangesAsync();
+                return BadRequest(ex.Message);
+            }
         }
 
-        [HttpGet("{id}")]
-        public async Task<IEnumerable<EmailEntity>> GetById(long id)
-        {
-            var  x = await _emailService.GetAllEmailsAsync();
-            return x;
-        }
 
         /// <summary>
         /// The method takes no parameters.
@@ -55,15 +69,45 @@ namespace EmailSenderService.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<EmailEntity>>> Get()
         {
-           var result = await _emailService.GetAllEmailsAsync();
-           if(result == null || result.Count() == 0)
-           {
-              return BadRequest("List emails is empty");
-           }
-           else
-           {
-             return Ok(result);
-           }
-        }         
+            var emails = await _emailService.GetAllEmailsAsync();
+            if (emails == null || emails.Count() == 0)
+            {
+                return BadRequest("List emails is empty");
+            }
+            else
+            {
+                return Ok(emails);
+            }
+        }
+
+
+        /// <summary>
+        /// The method accepts an email object and an error message. And converts them to EmailEntity
+        /// </summary>
+        /// <param name="emailData"></param>
+        /// <param name="errorMesssage"></param>
+        /// <returns></returns>
+        private EmailEntity EmailMapper(EmailModel emailData, string errorMesssage = "")
+        {
+
+            if (errorMesssage == "")
+            {
+                var email = new EmailEntity(emailData.Subject, emailData.Body, errorMesssage, Result.Ok);
+                foreach (var emailAddress in emailData.Recipients)
+                {
+                    email.Recipients.Add(new EmailAdressEntity(emailAddress));
+                }
+                return email;
+            }
+            else
+            {
+                var email = new EmailEntity(emailData.Subject, emailData.Body, errorMesssage, Result.Error);
+                foreach (var emailAddress in emailData.Recipients)
+                {
+                    email.Recipients.Add(new EmailAdressEntity(emailAddress));
+                }
+                return email;
+            }
+        }
     }
 }

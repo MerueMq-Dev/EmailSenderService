@@ -10,6 +10,6 @@
   },
   "authenticatedData": {
     "email": "", // example: asd@mail.ru
-    "password": "" // example: Password1234я 
+    "password": "" // example: Password1234 
   }
 }
